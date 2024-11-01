@@ -14,14 +14,30 @@ struct ContentView: View {
             VStack {
                 if authViewModel.user == nil {
                     AuthenticationView(authViewModel: authViewModel, email: $email, password: $password)
+                        .padding()
                 } else {
                     MoodTrackingView(moodTracker: moodTracker, selectedMood: $selectedMood, activity: $activity)
+                        .padding()
+                        .onAppear {
+                            moodTracker.fetchEntries()
+                        }
+                    MoodSummaryView(moodTracker: moodTracker)
+                        .padding(.top)
                 }
             }
             .navigationTitle("MoodMap")
-            .onAppear {
-                moodTracker.fetchEntries()
+            .navigationBarItems(trailing: logoutButton)
+            .alert(isPresented: $authViewModel.showAlert) {
+                Alert(title: Text("Error"), message: Text(authViewModel.errorMessage), dismissButton: .default(Text("OK")))
             }
+        }
+    }
+    
+    private var logoutButton: some View {
+        Button(action: {
+            authViewModel.logout()
+        }) {
+            Text("Logout")
         }
     }
 }
