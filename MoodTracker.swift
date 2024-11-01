@@ -4,14 +4,27 @@ import SwiftUI
 
 class MoodTracker: ObservableObject {
     @Published var entries: [MoodEntry] = []
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    private let context: NSManagedObjectContext
+
+    init(context: NSManagedObjectContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext) {
+        self.context = context
+        fetchEntries()
+    }
+
+    private let fetchRequest: NSFetchRequest<MoodEntry> = {
+        let request = MoodEntry.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \MoodEntry.date, ascending: false)]
+        return request
+    }()
     
     func fetchEntries() {
-        let request: NSFetchRequest<MoodEntry> = MoodEntry.fetchRequest()
         do {
-            entries = try context.fetch(request)
+            let fetchedEntries = try context.fetch(fetchRequest)
+            DispatchQueue.main.async {
+                self.entries = fetchedEntries
+            }
         } catch {
-            print("Error fetching data: \(error)")
+            print("Failed to fetch entries: \(error.localizedDescription)")
         }
     }
 
@@ -21,12 +34,31 @@ class MoodTracker: ObservableObject {
         newEntry.mood = mood
         newEntry.date = Date()
         newEntry.activity = activity
+
+        saveContext()
+        fetchEntries()
+    }
+
+    func updateMood(entry: MoodEntry, newMood: String, newActivity: String) {
+        entry.mood = newMood
+        entry.activity = newActivity
+        entry.date = Date()
         
+        saveContext()
+        fetchEntries()
+    }
+    
+    func deleteMood(entry: MoodEntry) {
+        context.delete(entry)
+        saveContext()
+        fetchEntries()
+    }
+
+    private func saveContext() {
         do {
             try context.save()
-            fetchEntries()
         } catch {
-            print("Error saving data: \(error)")
+            print("Failed to save context: \(error.localizedDescription)")
         }
     }
 }
